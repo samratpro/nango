@@ -7,7 +7,7 @@ A powerful **Django-like** framework for Node.js, built with **Fastify** (API) a
 ### Setup (First Run)
 1.  **Clone the repository**:
     ```bash
-    git clone <repo_url> nango
+    git clone https://github.com/samratpro/nango.git
     cd nango
     ```
 
