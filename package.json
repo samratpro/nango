@@ -1,0 +1,35 @@
+{
+  "name": "django-like-framework",
+  "version": "1.0.0",
+  "description": "Django-like full-stack framework with Node.js, Fastify, and Next.js",
+  "private": true,
+  "scripts": {
+    "install:all": "npm run install:api && npm run install:admin && npm run install:app && npm run install:cli",
+    "install:api": "cd api && npm install",
+    "install:admin": "cd admin && npm install",
+    "install:app": "cd app && npm install",
+    "install:cli": "cd cli && npm install && npm run build",
+    "dev": "cd cli && npm run dev",
+    "dev:api": "cd api && npm run dev",
+    "dev:admin": "cd admin && npm run dev",
+    "dev:app": "cd app && npm run dev",
+    "build:all": "npm run build:api && npm run build:admin && npm run build:app && npm run build:cli",
+    "build:api": "cd api && npm run build",
+    "build:admin": "cd admin && npm run build",
+    "build:app": "cd app && npm run build",
+    "build:cli": "cd cli && npm run build",
+    "migrate": "cd cli && npm run dev migrate",
+    "createsuperuser": "cd cli && npm run dev createsuperuser",
+    "cli": "cd cli && npm run dev"
+  },
+  "keywords": [
+    "django",
+    "fastify",
+    "nextjs",
+    "typescript",
+    "framework",
+    "fullstack"
+  ],
+  "author": "",
+  "license": "MIT"
+}

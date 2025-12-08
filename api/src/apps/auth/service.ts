@@ -1,0 +1,275 @@
+import { User, EmailVerificationToken, PasswordResetToken, RefreshToken } from './models';
+import jwt from 'jsonwebtoken';
+import { v4 as uuidv4 } from 'uuid';
+import settings from '../../config/settings';
+import emailService from '../../core/email';
+
+export interface RegisterData {
+  username: string;
+  email: string;
+  password: string;
+  firstName?: string;
+  lastName?: string;
+}
+
+export interface LoginData {
+  email: string;
+  password: string;
+}
+
+export interface TokenPayload {
+  userId: number;
+  email: string;
+  username: string;
+  isStaff: boolean;
+  isSuperuser: boolean;
+}
+
+class AuthService {
+  generateAccessToken(user: User): string {
+    const payload: TokenPayload = {
+      userId: user.id!,
+      email: user.email,
+      username: user.username,
+      isStaff: user.isStaff,
+      isSuperuser: user.isSuperuser
+    };
+
+    return jwt.sign(payload, settings.jwt.secret, {
+      expiresIn: settings.jwt.expiresIn
+    });
+  }
+
+  generateRefreshToken(user: User): string {
+    const token = jwt.sign(
+      { userId: user.id },
+      settings.jwt.secret,
+      { expiresIn: settings.jwt.refreshExpiresIn }
+    );
+
+    // Store refresh token in database
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
+
+    RefreshToken.objects.create({
+      userId: user.id!.toString(),
+      token,
+      expiresAt: expiresAt.toISOString()
+    });
+
+    return token;
+  }
+
+  async register(data: RegisterData): Promise<{ success: boolean; message: string; user?: User }> {
+    // Check if user already exists
+    const existingUser = User.objects.get({ email: data.email });
+    if (existingUser) {
+      return { success: false, message: 'User with this email already exists' };
+    }
+
+    const existingUsername = User.objects.get({ username: data.username });
+    if (existingUsername) {
+      return { success: false, message: 'Username already taken' };
+    }
+
+    // Create user
+    const user = new User();
+    user.username = data.username;
+    user.email = data.email;
+    user.firstName = data.firstName || '';
+    user.lastName = data.lastName || '';
+    await user.setPassword(data.password);
+    user.save();
+
+    // Generate verification token
+    const token = uuidv4();
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24); // 24 hours
+
+    EmailVerificationToken.objects.create({
+      userId: user.id!.toString(),
+      token,
+      expiresAt: expiresAt.toISOString()
+    });
+
+    // Send verification email
+    await emailService.sendVerificationEmail(user.email, token, user.username);
+
+    return {
+      success: true,
+      message: 'Registration successful. Please check your email to verify your account.',
+      user
+    };
+  }
+
+  async verifyEmail(token: string): Promise<{ success: boolean; message: string }> {
+    const verificationToken = EmailVerificationToken.objects.get({ token });
+
+    if (!verificationToken) {
+      return { success: false, message: 'Invalid verification token' };
+    }
+
+    if (verificationToken.isExpired()) {
+      return { success: false, message: 'Verification token has expired' };
+    }
+
+    const user = User.objects.get({ id: parseInt(verificationToken.userId) });
+    if (!user) {
+      return { success: false, message: 'User not found' };
+    }
+
+    user.isActive = true;
+    user.save();
+
+    // Delete used token
+    verificationToken.delete();
+
+    return { success: true, message: 'Email verified successfully' };
+  }
+
+  async login(data: LoginData): Promise<{ success: boolean; message: string; accessToken?: string; refreshToken?: string; user?: any }> {
+    const user = User.objects.get({ email: data.email });
+
+    if (!user) {
+      return { success: false, message: 'Invalid credentials' };
+    }
+
+    const isPasswordValid = await user.checkPassword(data.password);
+    if (!isPasswordValid) {
+      return { success: false, message: 'Invalid credentials' };
+    }
+
+    if (!user.isActive) {
+      return { success: false, message: 'Please verify your email before logging in' };
+    }
+
+    // Update last login
+    user.lastLogin = new Date().toISOString();
+    user.save();
+
+    const accessToken = this.generateAccessToken(user);
+    const refreshToken = this.generateRefreshToken(user);
+
+    return {
+      success: true,
+      message: 'Login successful',
+      accessToken,
+      refreshToken,
+      user: user.toJSON()
+    };
+  }
+
+  async refreshAccessToken(refreshToken: string): Promise<{ success: boolean; message: string; accessToken?: string }> {
+    try {
+      const decoded = jwt.verify(refreshToken, settings.jwt.secret) as { userId: number };
+
+      const tokenRecord = RefreshToken.objects.get({ token: refreshToken });
+      if (!tokenRecord || !tokenRecord.isValid()) {
+        return { success: false, message: 'Invalid refresh token' };
+      }
+
+      const user = User.objects.get({ id: decoded.userId });
+      if (!user) {
+        return { success: false, message: 'User not found' };
+      }
+
+      const accessToken = this.generateAccessToken(user);
+
+      return { success: true, message: 'Token refreshed', accessToken };
+    } catch (error) {
+      return { success: false, message: 'Invalid refresh token' };
+    }
+  }
+
+  async requestPasswordReset(email: string): Promise<{ success: boolean; message: string }> {
+    const user = User.objects.get({ email });
+
+    if (!user) {
+      // Don't reveal if user exists
+      return { success: true, message: 'If an account exists with this email, a password reset link has been sent.' };
+    }
+
+    const token = uuidv4();
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 1); // 1 hour
+
+    PasswordResetToken.objects.create({
+      userId: user.id!.toString(),
+      token,
+      expiresAt: expiresAt.toISOString()
+    });
+
+    await emailService.sendPasswordResetEmail(user.email, token, user.username);
+
+    return { success: true, message: 'If an account exists with this email, a password reset link has been sent.' };
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    const resetToken = PasswordResetToken.objects.get({ token });
+
+    if (!resetToken) {
+      return { success: false, message: 'Invalid reset token' };
+    }
+
+    if (resetToken.used) {
+      return { success: false, message: 'Reset token has already been used' };
+    }
+
+    if (resetToken.isExpired()) {
+      return { success: false, message: 'Reset token has expired' };
+    }
+
+    const user = User.objects.get({ id: parseInt(resetToken.userId) });
+    if (!user) {
+      return { success: false, message: 'User not found' };
+    }
+
+    await user.setPassword(newPassword);
+    user.save();
+
+    resetToken.used = true;
+    resetToken.save();
+
+    // Revoke all refresh tokens
+    const refreshTokens = RefreshToken.objects.filter({ userId: user.id!.toString() }).all();
+    refreshTokens.forEach(token => {
+      token.revoked = true;
+      token.save();
+    });
+
+    await emailService.sendPasswordChangedEmail(user.email, user.username);
+
+    return { success: true, message: 'Password reset successful' };
+  }
+
+  async changePassword(userId: number, currentPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    const user = User.objects.get({ id: userId });
+
+    if (!user) {
+      return { success: false, message: 'User not found' };
+    }
+
+    const isPasswordValid = await user.checkPassword(currentPassword);
+    if (!isPasswordValid) {
+      return { success: false, message: 'Current password is incorrect' };
+    }
+
+    await user.setPassword(newPassword);
+    user.save();
+
+    await emailService.sendPasswordChangedEmail(user.email, user.username);
+
+    return { success: true, message: 'Password changed successfully' };
+  }
+
+  verifyToken(token: string): TokenPayload | null {
+    try {
+      const decoded = jwt.verify(token, settings.jwt.secret) as TokenPayload;
+      return decoded;
+    } catch (error) {
+      return null;
+    }
+  }
+}
+
+export default new AuthService();

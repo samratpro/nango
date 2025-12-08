@@ -1,0 +1,48 @@
+{
+  "name": "django-like-backend",
+  "version": "1.0.0",
+  "description": "Django-like framework with Fastify and TypeScript",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "migrate": "tsx src/cli/migrate.ts",
+    "makemigrations": "tsx src/cli/makemigrations.ts",
+    "create-user": "tsx src/cli/create_user.ts",
+    "createsuperuser": "tsx src/cli/create_user.ts",
+    "startapp": "tsx src/cli/create_app.ts"
+  },
+  "keywords": [
+    "django",
+    "fastify",
+    "typescript",
+    "framework"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@fastify/cors": "^9.0.1",
+    "@fastify/static": "^6.12.0",
+    "@fastify/swagger": "^8.14.0",
+    "@fastify/swagger-ui": "^3.0.0",
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.7.0",
+    "dotenv": "^17.2.3",
+    "fastify": "^4.26.2",
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^6.9.11",
+    "uuid": "^9.0.1",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/better-sqlite3": "^7.6.9",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/node": "^20.11.28",
+    "@types/nodemailer": "^6.4.14",
+    "@types/uuid": "^9.0.8",
+    "tsx": "^4.7.1",
+    "typescript": "^5.4.2"
+  }
+}
