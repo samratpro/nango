@@ -60,86 +60,79 @@ npm run startapp <appName>
 *Example:* `npm run startapp blog`
 This creates `api/src/apps/blog` containing `models.ts` and `index.ts`.
 
-## 4. Creating Models
-Define models in `src/apps/<appName>/models.ts`. Use the `@registerAdmin` decorator to expose them to the Admin Panel.
+## 4. Documentation & Guides
+We have detailed guides for every aspect of the framework:
 
-**Example: Creating a 'Post' model with a Foreign Key**
+*   **[Model Registration Guide](./MODEL_REGISTRATION_GUIDE.md)**: How to create models, register them in Admin, and handle relationships.
+    *   *Includes: Foreign Keys, Field Types, App Structure.*
+*   **[User & Authentication Guide](./USER_AND_AUTH_GUIDE.md)**: Managing users, roles (Teacher/Student), middleware protection, and profiles.
+    *   *Includes: Login/Register flows, Email Config, Protected Routes.*
+*   **[Django Comparison](./DJANGO_COMPARISON.md)**: A cheat sheet for Django developers moving to this framework.
+*   **[Database & Migrations](./DATABASE_MIGRATIONS.md)**: How to handle schema changes (Sync-on-Start vs Manual).
+*   **[Production & PostgreSQL](./PRODUCTION_DEPLOYMENT.md)**: Deploying with SQLite or switching to Postgres.
+*   **[Rate Limiting](./RATE_LIMITING.md)**: Configuring API request limits.
+*   **[Port Configuration](./PORT_CONFIGURATION.md)**: Understanding the 3-port architecture (8000/8001/3000).
+
+---
+
+## 5. Quick Start: Creating a Model
+
+Define models in `src/apps/<appName>/models.ts` with the `@registerAdmin` decorator.
 
 ```typescript
 import { Model } from '../../core/model';
-import { CharField, TextField, BooleanField, DateTimeField, ForeignKey } from '../../core/fields';
+import { CharField, BooleanField } from '../../core/fields';
 import { registerAdmin } from '../../core/adminRegistry';
 
 @registerAdmin({
   appName: 'Blog',
   displayName: 'Posts',
-  icon: 'file-text', // Feather icon name
-  listDisplay: ['id', 'title', 'author', 'isPublished'],
-  searchFields: ['title']
+  listDisplay: ['id', 'title', 'isPublished']
 })
 export class Post extends Model {
-  static getTableName(): string {
-    return 'posts';
-  }
+  static getTableName() { return 'posts'; }
 
-  // Fields (Property wrappers)
   title = new CharField({ maxLength: 200 });
-  content = new TextField();
-  
-  // Foreign Key to User model (Related by class name string)
-  author = new ForeignKey('User', { onDelete: 'CASCADE' });
-
   isPublished = new BooleanField({ default: false });
-  createdAt = new DateTimeField({ default: () => new Date().toISOString() });
 }
 ```
 
-## 5. Registering Apps
-After creating an app or model, you **must register it** in the main entry point for it to be loaded.
+*For relationships and advanced fields, see the [Model Registration Guide](./MODEL_REGISTRATION_GUIDE.md).*
 
-1.  Open `api/src/index.ts`.
-2.  Add an import for your app's models:
-
+## 6. Registration
+Remember to import your model in `api/src/index.ts` to activate it:
 ```typescript
-// ... other imports ...
-import './apps/blog/models'; // <-- Register your new app here
+import './apps/blog/models';
 ```
 
-3.  Restart the API server. The database tables will be automatically created.
+## 7. Routing, Swagger, & API Exposure
 
-## 6. Routing & API Exposure
 ### Admin Panel
-Models with `@registerAdmin` automatically appear in the Admin UI at `http://localhost:8001/dashboard`.
+Models with `@registerAdmin` **automatically appear** in the Admin UI at `http://localhost:8001`.
 
-### Swagger / Public API
-To expose a custom API endpoint:
-1.  Create `routes.ts` in your app folder.
-2.  Define routes using Fastify syntax.
-3.  Register the routes in `src/index.ts`.
+### Custom API Endpoints
+To expose public API endpoints (e.g., for your Frontend App on port 3000):
 
-**Example `routes.ts`:**
+1.  Create `routes.ts` in your app.
+2.  Define Fastify routes.
+3.  Add **Swagger Schema** to document them.
+
 ```typescript
-import { FastifyInstance } from 'fastify';
-import { Post } from './models';
-
+// api/src/apps/blog/routes.ts
 export default async function blogRoutes(fastify: FastifyInstance) {
-    fastify.get('/api/posts', async (req, reply) => {
-        return Post.objects.all<{ title: string }>().all();
+    fastify.get('/api/posts', {
+        schema: { tags: ['Blog'], response: { 200: { type: 'array' } } }
+    }, async (req, reply) => {
+        return Post.objects.all().all();
     });
 }
 ```
 
-**Register in `index.ts`:**
-```typescript
-import blogRoutes from './apps/blog/routes';
-// ...
-await fastify.register(blogRoutes);
-```
+*For full Swagger configuration and Request/Response schemas, see the [User & Auth Guide](./USER_AND_AUTH_GUIDE.md#6-api-documentation-swagger).*
 
-### Swagger Documentation
-Visit `http://localhost:8000/docs`.
-*   **Access**: Restricted to Superusers only (Basic Auth).
-*   Use your Admin credentials to login.
+### Swagger UI
+Visit `http://localhost:8000/docs` to see your auto-generated API documentation.
+*   **Default Login**: `admin` / `admin` (Basic Auth)
 
 ## 7. User Roles & Permissions
 *   **Superuser**: Has full access.

@@ -60,6 +60,7 @@ Open `api/src/index.ts` and add this import:
 import './apps/blog/models';
 ```
 
+
 ### Step 4: Restart & Test
 
 Restart the API server:
@@ -67,6 +68,61 @@ Restart the API server:
 npm run dev
 ```
 *The `blog_posts` table will be automatically created on startup.*
+
+## Advanced Example: Relationships (Foreign Keys)
+
+Real applications often need relationships. Let's create `Category` and link `BlogPost` to it.
+
+### 1. Define Category Model
+
+Create `api/src/apps/blog/details.ts` (or keep in `models.ts`):
+
+```typescript
+// ... imports
+
+@registerAdmin({
+  displayName: 'Categories',
+  icon: 'tag',
+  listDisplay: ['id', 'name', 'slug'],
+  searchFields: ['name']
+})
+export class Category extends Model {
+  static getTableName(): string { return 'blog_categories'; }
+
+  name = new CharField({ maxLength: 100 });
+  slug = new CharField({ maxLength: 100, unique: true });
+}
+```
+
+### 2. Update BlogPost with ForeignKey
+
+Update your `BlogPost` class to reference `Category`:
+
+```typescript
+import { ForeignKey } from '../../core/fields';
+import { Category } from './details'; // Import the model class
+
+@registerAdmin({
+  // ... existing config
+  listDisplay: ['id', 'title', 'category', 'published'], // Add category to display
+  filterFields: ['published', 'category']                // Allow filtering by category
+})
+export class BlogPost extends Model {
+  // ... existing fields
+
+  // Create the relationship
+  // 'Category' is the class name or string name of the model
+  category = new ForeignKey('Category', { 
+    required: true, 
+    onDelete: 'CASCADE',  // Deletes posts if category is deleted
+    relatedModel: 'Category' // Explicitly state the related admin model name
+  });
+}
+```
+
+### 3. Register Both
+
+In `index.ts`, importing the file containing these classes is enough.
 
 ## ✅ That's It!
 
@@ -113,15 +169,54 @@ Visit `http://localhost:8001/dashboard`.
 
 To expose a custom API for your frontend:
 
-1. Create `api/src/apps/blog/routes.ts`:
+### 1. Create `api/src/apps/blog/routes.ts`:
 
 ```typescript
 import { FastifyInstance } from 'fastify';
 import { BlogPost } from './models';
 
 export default async function blogRoutes(fastify: FastifyInstance) {
-    fastify.get('/api/posts', async (req, reply) => {
+    
+    // GET /api/posts - List all posts
+    fastify.get('/api/posts', {
+        schema: {
+            tags: ['Blog'], // Group in Swagger UI
+            description: 'Get all blog posts',
+            response: {
+                200: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            id: { type: 'integer' },
+                            title: { type: 'string' },
+                            content: { type: 'string' },
+                            published: { type: 'boolean' }
+                        }
+                    }
+                }
+            }
+        }
+    }, async (req, reply) => {
         return BlogPost.objects.all().all();
+    });
+
+    // POST /api/posts - Create a post
+    fastify.post('/api/posts', {
+        schema: {
+            tags: ['Blog'],
+            body: {
+                type: 'object',
+                required: ['title', 'content'],
+                properties: {
+                    title: { type: 'string' },
+                    content: { type: 'string' },
+                    published: { type: 'boolean' }
+                }
+            }
+        }
+    }, async (req, reply) => {
+        // ... creation logic
     });
 }
 ```

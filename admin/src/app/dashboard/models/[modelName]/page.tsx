@@ -758,9 +758,7 @@ export default function ModelDetailPage() {
                                         <a href="/dashboard" className="text-gray-600 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
                                             Dashboard
                                         </a>
-                                        <a href="/dashboard/models/User" className="text-gray-600 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                                            Users
-                                        </a>
+
                                         <a href="/dashboard/models" className="text-gray-600 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
                                             Models
                                         </a>
