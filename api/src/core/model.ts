@@ -24,6 +24,12 @@ export class QuerySet<T> {
   }
 
   orderBy(field: string, direction: 'ASC' | 'DESC' = 'ASC'): QuerySet<T> {
+    // Security check for orderBy field
+    const validFields = Object.keys(this.model.getFields());
+    if (!validFields.includes(field) && field !== 'id') {
+      throw new Error(`Security Error: Invalid orderBy field '${field}'`);
+    }
+
     this.options.orderBy = field;
     this.options.orderDirection = direction;
     return this;
@@ -39,6 +45,25 @@ export class QuerySet<T> {
     return this;
   }
 
+  private buildWhereClause(params: any[]): string {
+    if (Object.keys(this.filters).length === 0) return '';
+    
+    const validFields = Object.keys(this.model.getFields());
+    const conditions: string[] = [];
+    
+    for (const key of Object.keys(this.filters)) {
+      // SECURITY: Validate column name against allowed fields to prevent SQL Injection
+      if (!validFields.includes(key) && key !== 'id') {
+        throw new Error(`Security Error: Invalid filter field '${key}' on model '${this.model.name}'`);
+      }
+      
+      params.push(this.filters[key]);
+      conditions.push(`${key} = ?`);
+    }
+    
+    return conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
+  }
+
   all(): T[] {
     const db = DatabaseManager.getConnection();
     const tableName = this.model.getTableName();
@@ -46,13 +71,7 @@ export class QuerySet<T> {
     let query = `SELECT * FROM ${tableName}`;
     const params: any[] = [];
 
-    if (Object.keys(this.filters).length > 0) {
-      const conditions = Object.keys(this.filters).map(key => {
-        params.push(this.filters[key]);
-        return `${key} = ?`;
-      });
-      query += ` WHERE ${conditions.join(' AND ')}`;
-    }
+    query += this.buildWhereClause(params);
 
     if (this.options.orderBy) {
       query += ` ORDER BY ${this.options.orderBy} ${this.options.orderDirection || 'ASC'}`;
@@ -88,13 +107,7 @@ export class QuerySet<T> {
     let query = `SELECT COUNT(*) as count FROM ${tableName}`;
     const params: any[] = [];
 
-    if (Object.keys(this.filters).length > 0) {
-      const conditions = Object.keys(this.filters).map(key => {
-        params.push(this.filters[key]);
-        return `${key} = ?`;
-      });
-      query += ` WHERE ${conditions.join(' AND ')}`;
-    }
+    query += this.buildWhereClause(params);
 
     const stmt = db.prepare(query);
     const result = stmt.get(...params) as { count: number };
@@ -108,13 +121,11 @@ export class QuerySet<T> {
     let query = `DELETE FROM ${tableName}`;
     const params: any[] = [];
 
-    if (Object.keys(this.filters).length > 0) {
-      const conditions = Object.keys(this.filters).map(key => {
-        params.push(this.filters[key]);
-        return `${key} = ?`;
-      });
-      query += ` WHERE ${conditions.join(' AND ')}`;
-    }
+    query += this.buildWhereClause(params);
+
+    // Safety: Don't allow delete all without explicit empty filter?
+    // Django allows .all().delete().
+    // We'll allow it.
 
     const stmt = db.prepare(query);
     const result = stmt.run(...params);

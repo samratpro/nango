@@ -57,7 +57,7 @@ export default function DashboardPage() {
                   </a>
                   {user?.isSuperuser ? (
                     <a
-                      href="/dashboard/users"
+                      href="/dashboard/models/User"
                       className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
                     >
                       Users
@@ -177,7 +177,7 @@ export default function DashboardPage() {
                   {/* User Management Card - Only for Superusers */}
                   {user?.isSuperuser ? (
                     <div className="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:bg-gray-50"
-                      onClick={() => router.push('/dashboard/users')}>
+                      onClick={() => router.push('/dashboard/models/User')}>
                       <div className="p-5">
                         <div className="flex items-center">
                           <div className="flex-shrink-0">

@@ -148,8 +148,18 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         const instances = query.all();
         const total = metadata.model.objects.count();
 
+        // Filter excluded fields (security)
+        const excluded = metadata.adminOptions.excludeFields || [];
+        const safeInstances = instances.map(instance => {
+            const data = (instance as any).toJSON ? (instance as any).toJSON() : { ...instance };
+            for (const key of excluded) {
+                delete data[key];
+            }
+            return data;
+        });
+
         reply.send({
-            data: instances,
+            data: safeInstances,
             pagination: {
                 page,
                 limit,
@@ -195,7 +205,12 @@ export default async function adminRoutes(fastify: FastifyInstance) {
             return;
         }
 
-        reply.send({ data: instance });
+        const data = instance.toJSON();
+        const excluded = metadata.adminOptions.excludeFields || [];
+        for (const key of excluded) {
+            delete data[key];
+        }
+        reply.send({ data });
     });
 
     // Create model instance
@@ -228,7 +243,19 @@ export default async function adminRoutes(fastify: FastifyInstance) {
             }
         }
 
-        const instance = metadata.model.objects.create(request.body);
+        const body = request.body as any;
+
+        // Handle password hashing if supported
+        const instance = new metadata.model();
+        if (body.password && typeof (instance as any).setPassword === 'function') {
+            await (instance as any).setPassword(body.password);
+            delete body.password; // Don't overwrite hash with plain text
+        } else if (body.password === '' || body.password === undefined) {
+            delete body.password; // Ignore empty password updates
+        }
+
+        Object.assign(instance, body);
+        instance.save();
         reply.code(201).send({ data: instance });
     });
 
@@ -268,7 +295,17 @@ export default async function adminRoutes(fastify: FastifyInstance) {
             return;
         }
 
-        Object.assign(instance, request.body);
+        const body = request.body as any;
+
+        // Handle password hashing if supported
+        if (body.password && typeof (instance as any).setPassword === 'function') {
+            await (instance as any).setPassword(body.password);
+            delete body.password; // Don't overwrite hash with plain text
+        } else if (body.password === '' || body.password === undefined) {
+            delete body.password; // Ignore empty password updates
+        }
+
+        Object.assign(instance, body);
         instance.save();
 
         reply.send({ data: instance });

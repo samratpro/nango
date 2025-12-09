@@ -11,6 +11,7 @@ export interface AdminOptions {
     filterFields?: string[];
     orderBy?: string;
     readonly?: boolean;
+    excludeFields?: string[];
 }
 
 export interface ModelMetadata {

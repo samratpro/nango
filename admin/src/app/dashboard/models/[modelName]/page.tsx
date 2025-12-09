@@ -493,9 +493,13 @@ export default function ModelDetailPage() {
 
         // Apply additional filters
         Object.entries(activeFilters).forEach(([field, value]) => {
+            const fieldMeta = metadata?.fields[field];
             processed = processed.filter(item => {
-                if (typeof item[field] === 'boolean') {
-                    return String(item[field]) === value;
+                if (fieldMeta && fieldMeta.type === 'BooleanField') {
+                    // Handle boolean stored as 1/0 or true/false
+                    const itemBool = item[field] === 1 || item[field] === '1' || item[field] === true || item[field] === 'true';
+                    const filterBool = value === 'true' || value === '1';
+                    return itemBool === filterBool;
                 }
                 return String(item[field]) === value;
             });
@@ -566,22 +570,14 @@ export default function ModelDetailPage() {
 
         // Password fields - render as password input (or skip in edit mode)
         if (fieldName.toLowerCase().includes('password')) {
-            if (editingItem) {
-                // When editing, show a note instead of the password field
-                return (
-                    <div className="text-sm text-gray-500 italic">
-                        Password is hidden for security. Leave blank to keep current password.
-                    </div>
-                );
-            }
             return (
                 <input
                     type="password"
                     value={value}
                     onChange={(e) => setFormData({ ...formData, [fieldName]: e.target.value })}
-                    required={field.required && !field.nullable}
+                    required={!editingItem && field.required && !field.nullable}
                     className="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm py-2.5 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                    placeholder="Enter password"
+                    placeholder={editingItem ? "Leave blank to keep current" : "Enter password"}
                 />
             );
         }
@@ -762,7 +758,7 @@ export default function ModelDetailPage() {
                                         <a href="/dashboard" className="text-gray-600 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
                                             Dashboard
                                         </a>
-                                        <a href="/dashboard/users" className="text-gray-600 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                                        <a href="/dashboard/models/User" className="text-gray-600 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
                                             Users
                                         </a>
                                         <a href="/dashboard/models" className="text-gray-600 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">

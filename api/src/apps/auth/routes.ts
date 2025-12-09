@@ -41,6 +41,7 @@ const refreshTokenSchema = z.object({
 export default async function authRoutes(fastify: FastifyInstance) {
   // Register
   fastify.post('/auth/register', {
+    config: { rateLimit: { max: 5, timeWindow: '1 minute' } },
     schema: {
       tags: ['Authentication'],
       description: 'Register a new user',
@@ -102,6 +103,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
   // Login
   fastify.post('/auth/login', {
+    config: { rateLimit: { max: 5, timeWindow: '1 minute' } },
     schema: {
       tags: ['Authentication'],
       description: 'Login user',
@@ -151,6 +153,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
   // Request Password Reset
   fastify.post('/auth/forgot-password', {
+    config: { rateLimit: { max: 5, timeWindow: '1 minute' } },
     schema: {
       tags: ['Authentication'],
       description: 'Request password reset',

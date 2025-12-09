@@ -2,6 +2,8 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
+import helmet from '@fastify/helmet';
+import rateLimit from '@fastify/rate-limit';
 import settings from './config/settings';
 import DatabaseManager from './core/database';
 import emailService from './core/email';
@@ -45,6 +47,15 @@ async function start() {
 
     // Initialize email service
     emailService.initialize();
+
+    // Register Security Headers
+    await fastify.register(helmet, { contentSecurityPolicy: false });
+
+    // Register Rate Limiting
+    await fastify.register(rateLimit, {
+      max: 100,
+      timeWindow: '1 minute'
+    });
 
     // Register CORS
     await fastify.register(cors, {

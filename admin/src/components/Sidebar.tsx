@@ -147,14 +147,7 @@ export default function Sidebar({ className = '' }: SidebarProps) {
                 >
                     📊 Dashboard
                 </button>
-                {user?.isSuperuser ? (
-                    <button
-                        onClick={() => router.push('/dashboard/users')}
-                        className="w-full px-3 py-2 text-sm text-left text-gray-700 hover:bg-gray-50 rounded transition-colors mt-1"
-                    >
-                        👥 Manage Users
-                    </button>
-                ) : null}
+
             </div>
         </div>
     );
