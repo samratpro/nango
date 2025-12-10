@@ -115,10 +115,31 @@ export class BlogPost extends Model {
   category = new ForeignKey('Category', { 
     required: true, 
     onDelete: 'CASCADE',  // Deletes posts if category is deleted
-    relatedModel: 'Category' // Explicitly state the related admin model name
+    relatedModel: 'blog_categories' // Specify actual table name (important for custom table names!)
   });
 }
-```
+
+> **💡 Important: Custom Table Names**  
+> If your model uses a custom table name (via `getTableName()`), you **MUST** specify the `relatedModel` parameter:
+> 
+> ```typescript
+> // Example: STTApplication uses custom table name 'stt_applications'
+> export class STTApplication extends Model {
+>   static getTableName(): string {
+>     return 'stt_applications';  // Custom name with underscore
+>   }
+> }
+> 
+> // When referencing it:
+> export class STTDocument extends Model {
+>   sttApplication = new ForeignKey('STTApplication', {
+>     relatedModel: 'stt_applications'  // ✅ Specify actual table name
+>     // NOT 'STTApplication' - that would generate 'sttapplications' (wrong!)
+>   });
+> }
+> ```
+> 
+> **Why?** The framework converts class names to table names by lowercasing + adding 's'. For models with custom `getTableName()`, this won't work correctly.
 
 ### 3. Register Both
 
